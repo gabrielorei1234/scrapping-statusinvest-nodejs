@@ -53,11 +53,9 @@ async function scrapeWebsitesFromFile(filePath) {
     }
 }
 
-(async () => {
-    const results = await scrapeWebsitesFromFile('./cotas.txt');
-
+function normalizeData(data) {
     // Converter os valores de P/VP, Dividend Yield e Valorização para números antes de ordenar
-    results.forEach(fundo => {
+    data.forEach(fundo => {
         if (fundo.pvp !== undefined) {
             fundo.pvp = parseFloat(fundo.pvp.replace(',', '.'));
         }
@@ -72,6 +70,28 @@ async function scrapeWebsitesFromFile(filePath) {
         }
     });
 
+    return data;
+}
+
+// Criar uma função de classificação personalizada
+function customSort(a, b) {
+    // Você pode ajustar os pesos para cada métrica conforme necessário
+    const pesoPvp = 0.2;
+    const pesoDividendYield = 0.3;
+    const pesoValorizacao = 0.2;
+    const pesoLucro = 0.2;
+    const pesoValorAtual = 0.1;
+
+    // Calcular a pontuação ponderada para cada fundo
+    const pontuacaoA = (a.pvp * pesoPvp) + (a.dividendYield * pesoDividendYield) + (a.valorization * pesoValorizacao) + (a.lucro * pesoLucro) + (a.actualValue * pesoValorAtual);
+    const pontuacaoB = (b.pvp * pesoPvp) + (b.dividendYield * pesoDividendYield) + (b.valorization * pesoValorizacao) + (b.lucro * pesoLucro) + (b.actualValue * pesoValorAtual);
+
+    return pontuacaoB - pontuacaoA; // Classificar do maior para o menor
+}
+
+(async () => {
+    let results = await scrapeWebsitesFromFile('./cotas.txt');
+    results = normalizeData(results);
     // Filtrar fundos com P/VP, Dividend Yield e Valorização definidos (remover aqueles com valores indefinidos)
     const fundosComIndicadoresDefinidos = results.filter(fundo => !isNaN(fundo.pvp) && !isNaN(fundo.dividendYield) && !isNaN(fundo.valorization) && !isNaN(fundo.actualValue));
 
@@ -80,27 +100,10 @@ async function scrapeWebsitesFromFile(filePath) {
         fundo.lucro = (fundo.dividendYield / 100) * fundo.actualValue;
     });
 
-    // Criar uma função de classificação personalizada
-    function customSort(a, b) {
-        // Você pode ajustar os pesos para cada métrica conforme necessário
-        const pesoPvp = 0.2;
-        const pesoDividendYield = 0.3;
-        const pesoValorizacao = 0.2;
-        const pesoLucro = 0.2;
-        const pesoValorAtual = 0.1;
-
-        // Calcular a pontuação ponderada para cada fundo
-        const pontuacaoA = (a.pvp * pesoPvp) + (a.dividendYield * pesoDividendYield) + (a.valorization * pesoValorizacao) + (a.lucro * pesoLucro) + (a.actualValue * pesoValorAtual);
-        const pontuacaoB = (b.pvp * pesoPvp) + (b.dividendYield * pesoDividendYield) + (b.valorization * pesoValorizacao) + (b.lucro * pesoLucro) + (b.actualValue * pesoValorAtual);
-
-        return pontuacaoB - pontuacaoA; // Classificar do maior para o menor
-    }
-
     // Ordenar os resultados com base na função de classificação personalizada
     fundosComIndicadoresDefinidos.sort(customSort);
 
     console.log("Fundos classificados por vários fatores:");
-    console.log(fundosComIndicadoresDefinidos);
-
-    console.log("Finished!");
+    console.log(fundosComIndicadoresDefinidos);    
 })();
+
