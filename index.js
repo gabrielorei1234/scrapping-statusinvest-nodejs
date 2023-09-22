@@ -1,4 +1,5 @@
 const puppeteer = require('puppeteer');
+const ExcelJS = require('exceljs');
 const fs = require('fs').promises;
 
 async function scrapeWebsite(url) {
@@ -89,6 +90,42 @@ function customSort(a, b) {
     return pontuacaoB - pontuacaoA; // Classificar do maior para o menor
 }
 
+async function criarPlanilha(fundos) {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Fundos Imobiliários');
+
+    // Definir cabeçalhos
+    worksheet.addRow(['Nome do FII', 'P/VP', 'Dividend Yield', 'Valorização', 'Lucro', 'Valor Atual']);
+
+    // Preencher os dados
+    fundos.forEach(fundo => {
+        worksheet.addRow([
+            fundo.name,
+            fundo.pvp,
+            fundo.dividendYield,
+            fundo.valorization,
+            fundo.lucro,
+            fundo.actualValue
+        ]);
+    });
+
+    // Verificar se a pasta "historico" existe, e criá-la se não existir
+    const historicoDir = './historico';
+    try {
+        await fs.access(historicoDir);
+    } catch (err) {
+        await fs.mkdir(historicoDir);
+    }
+
+    // Gerar um nome de arquivo único com base na data e hora
+    const dataAtual = new Date().toISOString().replace(/[:T.]/g, '-');
+    const nomeArquivo = `historico/fundos_imobiliarios_${dataAtual}.xlsx`;
+
+    // Salvar a planilha
+    await workbook.xlsx.writeFile(nomeArquivo);
+    console.log(`Planilha criada e salva em: ${nomeArquivo}`);
+}
+
 (async () => {
     let results = await scrapeWebsitesFromFile('./cotas.txt');
     results = normalizeData(results);
@@ -104,6 +141,8 @@ function customSort(a, b) {
     fundosComIndicadoresDefinidos.sort(customSort);
 
     console.log("Fundos classificados por vários fatores:");
-    console.log(fundosComIndicadoresDefinidos);    
+    console.log(fundosComIndicadoresDefinidos);
+    // Criar a planilha e salvar
+    await criarPlanilha(fundosComIndicadoresDefinidos);
 })();
 
