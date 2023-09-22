@@ -2,7 +2,7 @@ const puppeteer = require('puppeteer');
 const fs = require('fs').promises;
 
 async function scrapeWebsite(url) {
-    const browser = await puppeteer.launch({ headless: true });
+    const browser = await puppeteer.launch({ headless: false });
     const page = await browser.newPage();
 
     // Add Headers to avoid Bot detection
@@ -23,13 +23,14 @@ async function scrapeWebsite(url) {
     });
 
     const dataObject = {
+        name: url.split('/').at(-1),
         actualValue: strongElement[0],
         dividendYield: strongElement[3],
         valorization: strongElement[4],
         pvp: strongElement[6],
     };
 
-    await browser.close();
+    await browser.close();    
     return dataObject;
 }
 
@@ -38,10 +39,10 @@ async function scrapeWebsitesFromFile(filePath) {
         const websites = await fs.readFile(filePath, 'utf8');
         const websiteUrls = websites.split(',');
 
-        const results = [];
+        let results = [];
 
         for (const url of websiteUrls) {
-            const data = await scrapeWebsite(`https://statusinvest.com.br/fundos-imobiliarios/${url.trim()}`);
+            const data = await scrapeWebsite(`${url.trim()}`);
             results.push(data);
         }
 
@@ -54,6 +55,22 @@ async function scrapeWebsitesFromFile(filePath) {
 
 (async () => {
     const results = await scrapeWebsitesFromFile('./cotas.txt');
-    console.log(results);
-    console.log("finished!");
+
+    // Converter os valores de P/VP para números antes de ordenar
+    results.forEach(fundo => {
+        if (fundo.pvp !== undefined) {
+            fundo.pvp = parseFloat(fundo.pvp.replace(',', '.'));
+        }
+    });
+
+    // Filtrar fundos com P/VP definido (remover aqueles com P/VP indefinido)
+    const fundosComPvpDefinido = results.filter(fundo => !isNaN(fundo.pvp));
+
+    // Ordenar os resultados com base no P/VP (do menor para o maior)
+    fundosComPvpDefinido.sort((a, b) => b.pvp - a.pvp);
+
+    console.log("Fundos classificados por P/VP:");
+    console.log(fundosComPvpDefinido);
+
+    console.log("Finished!");
 })();
