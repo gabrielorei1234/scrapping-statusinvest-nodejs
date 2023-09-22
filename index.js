@@ -30,7 +30,7 @@ async function scrapeWebsite(url) {
         pvp: strongElement[6],
     };
 
-    await browser.close();    
+    await browser.close();
     return dataObject;
 }
 
@@ -56,21 +56,51 @@ async function scrapeWebsitesFromFile(filePath) {
 (async () => {
     const results = await scrapeWebsitesFromFile('./cotas.txt');
 
-    // Converter os valores de P/VP para números antes de ordenar
+    // Converter os valores de P/VP, Dividend Yield e Valorização para números antes de ordenar
     results.forEach(fundo => {
         if (fundo.pvp !== undefined) {
             fundo.pvp = parseFloat(fundo.pvp.replace(',', '.'));
         }
+        if (fundo.dividendYield !== undefined) {
+            fundo.dividendYield = parseFloat(fundo.dividendYield.replace(',', '.'));
+        }
+        if (fundo.valorization !== undefined) {
+            fundo.valorization = parseFloat(fundo.valorization.replace('%', '').replace(',', '.'));
+        }
+        if (fundo.actualValue !== undefined) {
+            fundo.actualValue = parseFloat(fundo.actualValue.replace(',', '.'));
+        }
     });
 
-    // Filtrar fundos com P/VP definido (remover aqueles com P/VP indefinido)
-    const fundosComPvpDefinido = results.filter(fundo => !isNaN(fundo.pvp));
+    // Filtrar fundos com P/VP, Dividend Yield e Valorização definidos (remover aqueles com valores indefinidos)
+    const fundosComIndicadoresDefinidos = results.filter(fundo => !isNaN(fundo.pvp) && !isNaN(fundo.dividendYield) && !isNaN(fundo.valorization) && !isNaN(fundo.actualValue));
 
-    // Ordenar os resultados com base no P/VP (do menor para o maior)
-    fundosComPvpDefinido.sort((a, b) => b.pvp - a.pvp);
+    // Adicionar campo "Lucro" com base no Dividend Yield e Valor Atual
+    fundosComIndicadoresDefinidos.forEach(fundo => {
+        fundo.lucro = (fundo.dividendYield / 100) * fundo.actualValue;
+    });
 
-    console.log("Fundos classificados por P/VP:");
-    console.log(fundosComPvpDefinido);
+    // Criar uma função de classificação personalizada
+    function customSort(a, b) {
+        // Você pode ajustar os pesos para cada métrica conforme necessário
+        const pesoPvp = 0.2;
+        const pesoDividendYield = 0.3;
+        const pesoValorizacao = 0.2;
+        const pesoLucro = 0.2;
+        const pesoValorAtual = 0.1;
+
+        // Calcular a pontuação ponderada para cada fundo
+        const pontuacaoA = (a.pvp * pesoPvp) + (a.dividendYield * pesoDividendYield) + (a.valorization * pesoValorizacao) + (a.lucro * pesoLucro) + (a.actualValue * pesoValorAtual);
+        const pontuacaoB = (b.pvp * pesoPvp) + (b.dividendYield * pesoDividendYield) + (b.valorization * pesoValorizacao) + (b.lucro * pesoLucro) + (b.actualValue * pesoValorAtual);
+
+        return pontuacaoB - pontuacaoA; // Classificar do maior para o menor
+    }
+
+    // Ordenar os resultados com base na função de classificação personalizada
+    fundosComIndicadoresDefinidos.sort(customSort);
+
+    console.log("Fundos classificados por vários fatores:");
+    console.log(fundosComIndicadoresDefinidos);
 
     console.log("Finished!");
 })();
