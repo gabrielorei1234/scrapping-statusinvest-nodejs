@@ -2,6 +2,9 @@ const puppeteer = require('puppeteer');
 const ExcelJS = require('exceljs');
 const fs = require('fs').promises;
 
+
+// https://statusinvest.com.br/category/AdvancedSearchResultExport?search=%7B%22Segment%22%3A%22%22%2C%22Gestao%22%3A%22%22%2C%22my_range%22%3A%220%3B20%22%2C%22dy%22%3A%7B%22Item1%22%3Anull%2C%22Item2%22%3Anull%7D%2C%22p_vp%22%3A%7B%22Item1%22%3Anull%2C%22Item2%22%3Anull%7D%2C%22percentualcaixa%22%3A%7B%22Item1%22%3Anull%2C%22Item2%22%3Anull%7D%2C%22numerocotistas%22%3A%7B%22Item1%22%3Anull%2C%22Item2%22%3Anull%7D%2C%22dividend_cagr%22%3A%7B%22Item1%22%3Anull%2C%22Item2%22%3Anull%7D%2C%22cota_cagr%22%3A%7B%22Item1%22%3Anull%2C%22Item2%22%3Anull%7D%2C%22liquidezmediadiaria%22%3A%7B%22Item1%22%3Anull%2C%22Item2%22%3Anull%7D%2C%22patrimonio%22%3A%7B%22Item1%22%3Anull%2C%22Item2%22%3Anull%7D%2C%22valorpatrimonialcota%22%3A%7B%22Item1%22%3Anull%2C%22Item2%22%3Anull%7D%2C%22numerocotas%22%3A%7B%22Item1%22%3Anull%2C%22Item2%22%3Anull%7D%2C%22lastdividend%22%3A%7B%22Item1%22%3Anull%2C%22Item2%22%3Anull%7D%7D&CategoryType=2
+
 async function scrapeWebsite(url) {
     const browser = await puppeteer.launch({ headless: false });
     const page = await browser.newPage();
@@ -77,11 +80,11 @@ function normalizeData(data) {
 // Criar uma função de classificação personalizada
 function customSort(a, b) {
     // Você pode ajustar os pesos para cada métrica conforme necessário
-    const pesoPvp = 0.2;
-    const pesoDividendYield = 0.3;
+    const pesoPvp = 0.5;
+    const pesoDividendYield = 0.4;
     const pesoValorizacao = 0.2;
-    const pesoLucro = 0.2;
-    const pesoValorAtual = 0.1;
+    const pesoLucro = 0.4;
+    const pesoValorAtual = 0.3;
 
     // Calcular a pontuação ponderada para cada fundo
     const pontuacaoA = (a.pvp * pesoPvp) + (a.dividendYield * pesoDividendYield) + (a.valorization * pesoValorizacao) + (a.lucro * pesoLucro) + (a.actualValue * pesoValorAtual);
