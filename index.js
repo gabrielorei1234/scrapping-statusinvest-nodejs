@@ -1,6 +1,57 @@
 const puppeteer = require('puppeteer');
 const ExcelJS = require('exceljs');
-const fs = require('fs').promises;
+
+const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
+const csv = require('csv-parser');
+
+async function baixarEProcessarCSV() {
+    const url = 'https://statusinvest.com.br/category/AdvancedSearchResultExport?search=%7B%22Segment%22%3A%22%22%2C%22Gestao%22%3A%22%22%2C%22my_range%22%3A%220%3B20%22%2C%22dy%22%3A%7B%22Item1%22%3Anull%2C%22Item2%22%3Anull%7D%2C%22p_vp%22%3A%7B%22Item1%22%3Anull%2C%22Item2%22%3Anull%7D%2C%22percentualcaixa%22%3A%7B%22Item1%22%3Anull%2C%22Item2%22%3Anull%7D%2C%22numerocotistas%22%3A%7B%22Item1%22%3Anull%2C%22Item2%22%3Anull%7D%2C%22dividend_cagr%22%3A%7B%22Item1%22%3Anull%2C%22Item2%22%3Anull%7D%2C%22cota_cagr%22%3A%7B%22Item1%22%3Anull%2C%22Item2%22%3Anull%7D%2C%22liquidezmediadiaria%22%3A%7B%22Item1%22%3Anull%2C%22Item2%22%3Anull%7D%2C%22patrimonio%22%3A%7B%22Item1%22%3Anull%2C%22Item2%22%3Anull%7D%2C%22valorpatrimonialcota%22%3A%7B%22Item1%22%3Anull%2C%22Item2%22%3Anull%7D%2C%22numerocotas%22%3A%7B%22Item1%22%3Anull%2C%22Item2%22%3Anull%7D%2C%22lastdividend%22%3A%7B%22Item1%22%3Anull%2C%22Item2%22%3Anull%7D%7D&CategoryType=2';
+
+    const headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36',
+        'Upgrade-Insecure-Requests': '1',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Accept-Language': 'en-US,en;q=0.9,en;q=0.8'
+    };
+
+
+    try {
+         const response = await axios.get(url, { headers });
+        const csvData = response.data;
+
+        // Processar o CSV
+        const records = [];
+        csvData
+            .trim() // Remover espaços em branco em excesso
+            .split('\n') // Dividir em linhas
+            .forEach((line, index) => {
+                if (index === 0) {
+                    // Alterar o cabeçalho conforme especificado
+                    line = 'TICKER,PRECO,PREÇO VIRGULA,ULTIMO RENDIMENTO,ULTIMO DIVIDENDO,DY,DY VIRGULA,VAL. PATRIMONIAL P/COTA,VAL. PATRIMONIAL P/COTA VIRGULA,PVP Antes Virgula,P/VP Pós virgula,LIQUIDEZ MÉDIA DIÁRIA,LIQUIDEZ MÉDIA DIÁRIA VIRGULA,VALOR EM CAIXA,VALOR EM CAIXA VIRGULA,DY CAGR,DY CAGR VIRGULA,VALOR CAGR,VALOR CAGR VIRGULA,PATRIMONIO,?,N COTISTA,?,TIPO DA GESTÃO,N de Cotas,?';
+                }
+                records.push(line);
+            });
+
+        // Verificar se a pasta "FIIs" existe, e criá-la se não existir
+        const fiisDir = './FIIs';
+        if (!fs.existsSync(fiisDir)) {
+            fs.mkdirSync(fiisDir);
+        }
+
+        // Gerar um nome de arquivo único com base na data e hora
+        const dataAtual = new Date().toISOString().replace(/[:T.]/g, '-');
+        const nomeArquivo = `FIIs/fundos_imobiliarios_${dataAtual}.csv`;
+
+        // Salvar o CSV processado
+        fs.writeFileSync(nomeArquivo, records.join('\n'));
+        console.log(`CSV processado e salvo em: ${nomeArquivo}`);
+    } catch (error) {
+        console.error('Erro ao baixar e processar o CSV:', error);
+    }
+}
 
 async function scrapeWebsite(url) {
     const browser = await puppeteer.launch({ headless: false });
@@ -126,23 +177,27 @@ async function criarPlanilha(fundos) {
     console.log(`Planilha criada e salva em: ${nomeArquivo}`);
 }
 
+// (async () => {
+//     let results = await scrapeWebsitesFromFile('./cotas.txt');
+//     results = normalizeData(results);
+//     // Filtrar fundos com P/VP, Dividend Yield e Valorização definidos (remover aqueles com valores indefinidos)
+//     const fundosComIndicadoresDefinidos = results.filter(fundo => !isNaN(fundo.pvp) && !isNaN(fundo.dividendYield) && !isNaN(fundo.valorization) && !isNaN(fundo.actualValue));
+
+//     // Adicionar campo "Lucro" com base no Dividend Yield e Valor Atual
+//     fundosComIndicadoresDefinidos.forEach(fundo => {
+//         fundo.lucro = (fundo.dividendYield / 100) * fundo.actualValue;
+//     });
+
+//     // Ordenar os resultados com base na função de classificação personalizada
+//     fundosComIndicadoresDefinidos.sort(customSort);
+
+//     console.log("Fundos classificados por vários fatores:");
+//     console.log(fundosComIndicadoresDefinidos);
+//     // Criar a planilha e salvar
+//     await criarPlanilha(fundosComIndicadoresDefinidos);
+// })();
+
 (async () => {
-    let results = await scrapeWebsitesFromFile('./cotas.txt');
-    results = normalizeData(results);
-    // Filtrar fundos com P/VP, Dividend Yield e Valorização definidos (remover aqueles com valores indefinidos)
-    const fundosComIndicadoresDefinidos = results.filter(fundo => !isNaN(fundo.pvp) && !isNaN(fundo.dividendYield) && !isNaN(fundo.valorization) && !isNaN(fundo.actualValue));
-
-    // Adicionar campo "Lucro" com base no Dividend Yield e Valor Atual
-    fundosComIndicadoresDefinidos.forEach(fundo => {
-        fundo.lucro = (fundo.dividendYield / 100) * fundo.actualValue;
-    });
-
-    // Ordenar os resultados com base na função de classificação personalizada
-    fundosComIndicadoresDefinidos.sort(customSort);
-
-    console.log("Fundos classificados por vários fatores:");
-    console.log(fundosComIndicadoresDefinidos);
-    // Criar a planilha e salvar
-    await criarPlanilha(fundosComIndicadoresDefinidos);
+    await baixarEProcessarCSV();
+    console.log("Finished!");
 })();
-
