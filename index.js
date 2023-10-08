@@ -53,6 +53,139 @@ async function baixarEProcessarCSV() {
     }
 }
 
+async function scrapeStatusInvest() {
+    const browser = await puppeteer.launch({ headless: false });
+    const page = await browser.newPage();
+    await page.goto('https://statusinvest.com.br/fundos-imobiliarios/busca-avancada');
+
+    // Espere até que o botão "Buscar" seja visível
+    await page.waitForSelector('[data-tooltip="Clique para fazer a busca com base nos valores informados"]');
+
+    // Clique no botão "Buscar" com base na propriedade data-tooltip
+    await page.click('[data-tooltip="Clique para fazer a busca com base nos valores informados"]');
+
+    console.log('Vou clicar no dropdown');
+
+    await page.waitForSelector('.select-dropdown.dropdown-trigger', { visible: true });
+    await page.click('.select-dropdown.dropdown-trigger');
+    
+    
+    // console.log('Cliquei no dropdown');
+    
+    // // Espere até que a lista suspensa seja visível
+    // await page.waitForSelector('ul.select-dropdown li:nth-child(3)');
+    
+    await page.waitForSelector('ul.select-dropdown');
+
+    // Clique na opção "TODOS" na lista suspensa
+    await page.evaluate(() => {
+        const elements = document.querySelectorAll('ul.select-dropdown li');
+        console.log(element)
+        for (const element of elements) {
+            console.log(element)
+            if (element.textContent.trim() === 'TODOS') {
+                element.click();
+                break;
+            }
+        }
+    });
+    
+    
+    // Espere a tabela de resultados ser carregada
+    await page.waitForSelector('.table-scroll table tbody tr.item', { timeout: 10000 });
+
+    // Extraia os dados da tabela
+    const data = await page.evaluate(() => {
+        const rows = Array.from(document.querySelectorAll('.table-scroll table tbody tr.item'));
+        return rows.map(row => {
+            const cells = Array.from(row.querySelectorAll('td'));
+            const ticker = cells[0].textContent.trim();
+            const price = cells[1].textContent.trim();
+            const gestao_f = cells[2].textContent.trim();
+            const dy = cells[3].textContent.trim();
+            const p_vp = cells[4].textContent.trim();
+            const percentualcaixa = cells[5].textContent.trim();
+            const numerocotistas = cells[6].textContent.trim();
+            const dividend_cagr = cells[7].textContent.trim();
+            const cota_cagr = cells[8].textContent.trim();
+            const liquidezmediadiaria = cells[9].textContent.trim();
+            const patrimonio = cells[10].textContent.trim();
+            const valorpatrimonialcota = cells[11].textContent.trim();
+            const numerocotas = cells[12].textContent.trim();
+            const lastdividend = cells[13].textContent.trim();
+
+            return {
+                ticker,
+                price,
+                gestao_f,
+                dy,
+                p_vp,
+                percentualcaixa,
+                numerocotistas,
+                dividend_cagr,
+                cota_cagr,
+                liquidezmediadiaria,
+                patrimonio,
+                valorpatrimonialcota,
+                numerocotas,
+                lastdividend
+            };
+        });
+    });
+
+    await browser.close();
+
+    return data;
+}
+
+function normalizeCSV(inputFilePath) {
+    // Leia o arquivo CSV
+    const csvData = fs.readFileSync(inputFilePath, 'utf8');
+    
+    // Divida o CSV em linhas e converta em uma matriz de strings
+    const rows = csvData.trim().split('\n').map(row => row.split(';'));
+
+    // Normalize os dados com base nas condições especificadas
+    let indice = 0;    
+    for (const row of rows) {
+        if(indice !== 0) {
+            console.log('row',row)                                 
+            const myObject = {
+                name: row[0],
+                value: row[1],
+                lastDividend: row[2],
+                dividendYield: row[3],
+                patrimonialValuePerCota: row[4],
+                pvp: row[5],
+                dailyLiquid: row[6],
+                valueInBox: row[7],
+                dividendYieldCarg: row[8],
+                valueCarg: row[9],
+                patrimonio: row[10],
+                cotistaNumber: row[11],
+                gestiumType: row[12],
+                costasNumber: row[13],
+            }
+
+            console.log(myObject)
+        }
+
+        indice += 1;
+    }
+
+    // Construa a string CSV normalizada
+    const normalizedCSV = rows.map(row => row.join('\t')).join('\n');
+
+    // Determine o nome do arquivo de saída
+    const outputPath = inputFilePath.replace('.csv', '_corrigido.csv');
+
+    // Salve o arquivo normalizado
+    fs.writeFileSync(outputPath, normalizedCSV, 'utf8');
+
+    console.log('Arquivo normalizado e salvo como', outputPath);
+}
+
+
 async function scrapeWebsite(url) {
     const browser = await puppeteer.launch({ headless: false });
     const page = await browser.newPage();
@@ -197,7 +330,20 @@ async function criarPlanilha(fundos) {
 //     await criarPlanilha(fundosComIndicadoresDefinidos);
 // })();
 
-(async () => {
-    await baixarEProcessarCSV();
-    console.log("Finished!");
-})();
+// (async () => {
+//     await baixarEProcessarCSV();
+//     console.log("Finished!");
+// })();
+
+// (async () => {
+//     const data = await scrapeStatusInvest();
+
+//     // Escreva os dados em um arquivo CSV
+//     const csvHeader = 'TICKER,PRECO,GESTAO_F,DY,P_VP,PERCENTUALCAIXA,NUMEROCOTISTAS,DIVIDEND_CAGR,COTA_CAGR,LIQUIDEZMEDIADIARIA,PATRIMONIO,VALORPATRIMONIALCOTA,NUMEROCOTAS,LASTDIVIDEND\n';
+//     const csvData = data.map(item => `${item.ticker},${item.price},${item.gestao_f},${item.dy},${item.p_vp},${item.percentualcaixa},${item.numerocotistas},${item.dividend_cagr},${item.cota_cagr},${item.liquidezmediadiaria},${item.patrimonio},${item.valorpatrimonialcota},${item.numerocotas},${item.lastdividend}`).join('\n');
+//     fs.writeFileSync('fundos_imobiliarios.csv', csvHeader + csvData, 'utf-8');
+//     console.log('Dados exportados para fundos_imobiliarios.csv');
+// })();
+
+//baixarEProcessarCSV();
+normalizeCSV('FIIs/fundos_imobiliarios_2023-10-08-15-51-47-629Z.csv');
