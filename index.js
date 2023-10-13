@@ -444,6 +444,7 @@ async function criarPlanilha(fundos) {
 //baixarCSVAcoes();
 async function init() {
   await new StatusInvestController().downloadAssetsDataInCSV();
+  await new StatusInvestController().downloadRealEstateInvestmentFundsDataInCSV();
 }
 
 init();

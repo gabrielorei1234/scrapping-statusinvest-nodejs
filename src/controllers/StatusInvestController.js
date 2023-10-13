@@ -6,6 +6,11 @@ class StatusInvestController {
     console.log("Downloading assets");
     await new statusInvestService().downloadAssetsDataInCSV();
   }
+
+  async downloadRealEstateInvestmentFundsDataInCSV() {
+    console.log("Downloading Real Estate Investment Funds");
+    await new statusInvestService().downloadRealEstateInvestmentFundsDataInCSV();
+  }
 }
 
 module.exports = StatusInvestController;
